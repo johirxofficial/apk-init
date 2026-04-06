@@ -19,7 +19,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Android Structure & Configs
+      - name: Step 1 - Generate Wrapper First
+        # Khali obosthay wrapper generate korle Gradle 9 version conflict korbe na
+        run: |
+          gradle wrapper --gradle-version 8.0
+          chmod +x gradlew
+
+      - name: Step 2 - Create Android Structure & Configs
         run: |
           PKG="com.johirx.webinapp"
           PKG_PATH="app/src/main/java/com/johirx/webinapp"
@@ -29,7 +35,6 @@ jobs:
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/assets
-          mkdir -p gradle/wrapper
 
           # 1. AndroidManifest.xml
           cat <<EOF > app/src/main/AndroidManifest.xml
@@ -47,7 +52,7 @@ jobs:
           </manifest>
           EOF
 
-          # 2. build.gradle (Project level) - Using 8.1.1 as stable
+          # 2. build.gradle (Project level)
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -101,25 +106,10 @@ jobs:
           # 6. Layout XML
           echo '<?xml version="1.0" encoding="utf-8"?><RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"></RelativeLayout>' > app/src/main/res/layout/activity_main.xml
 
-          # 7. Manually Create Gradle Wrapper properties (To avoid failure)
-          cat <<EOF > gradle/wrapper/gradle-wrapper.properties
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-      - name: Generate Gradlew Executables
-        run: |
-          # Direct gradle wrapper command run korbo but ignore dependencies
-          gradle wrapper --gradle-version 8.0 --validate-url
-          chmod +x gradlew
-
-      - name: Commit and Push
+      - name: Step 3 - Final Push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git commit -m "Fixed Android structure initialization" || exit 0
+          git commit -m "Full Android project structure initialized without Gradle conflicts" || exit 0
           git push
