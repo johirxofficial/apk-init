@@ -1,16 +1,16 @@
-name: Initialize Full Android Project
+name: Master Android Init
 
 on:
   workflow_dispatch:
 
 jobs:
-  initialize:
+  init:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -19,40 +19,34 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Step 1 - Generate Wrapper First
-        # Khali obosthay wrapper generate korle Gradle 9 version conflict korbe na
+      - name: Step 1 - Hack the Wrapper (Bypass Error)
         run: |
-          gradle wrapper --gradle-version 8.0
-          chmod +x gradlew
-
-      - name: Step 2 - Create Android Structure & Configs
+          # Create a dummy settings file to fool Gradle 9.x into running
+          echo "rootProject.name='temp'" > settings.gradle
+          # Now safely generate the Gradle Wrapper binaries for Android version
+          gradle wrapper --gradle-version 8.1.1
+          
+      - name: Step 2 - Build Actual Android Structure
         run: |
           PKG="com.johirx.webinapp"
-          PKG_PATH="app/src/main/java/com/johirx/webinapp"
+          DIR="app/src/main/java/com/johirx/webinapp"
           
-          mkdir -p $PKG_PATH
+          # Create all folders
+          mkdir -p $DIR
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/assets
 
-          # 1. AndroidManifest.xml
-          cat <<EOF > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$PKG">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <application android:allowBackup="true" android:label="WebInApp" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+          # 1. Override dummy with REAL settings.gradle
+          echo "include ':app'" > settings.gradle
+          echo "rootProject.name='WebInApp'" >> settings.gradle
+          
+          # 2. Gradle Properties
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
 
-          # 2. build.gradle (Project level)
+          # 3. Project build.gradle
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -63,7 +57,7 @@ jobs:
           }
           EOF
 
-          # 3. build.gradle (App level)
+          # 4. App build.gradle
           cat <<EOF > app/build.gradle
           plugins { id 'com.android.application' }
           android {
@@ -83,14 +77,24 @@ jobs:
           }
           EOF
 
-          # 4. Settings & Properties
-          echo "include ':app'" > settings.gradle
-          echo "rootProject.name='WebInApp'" >> settings.gradle
-          echo "android.useAndroidX=true" > gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+          # 5. Manifest
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$PKG">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application android:allowBackup="true" android:label="WebInApp" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
-          # 5. MainActivity.java
-          cat <<EOF > $PKG_PATH/MainActivity.java
+          # 6. MainActivity.java
+          cat <<EOF > $DIR/MainActivity.java
           package $PKG;
           import android.os.Bundle;
           import androidx.appcompat.app.AppCompatActivity;
@@ -103,13 +107,16 @@ jobs:
           }
           EOF
 
-          # 6. Layout XML
-          echo '<?xml version="1.0" encoding="utf-8"?><RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"></RelativeLayout>' > app/src/main/res/layout/activity_main.xml
+          # 7. Layout XML
+          cat <<EOF > app/src/main/res/layout/activity_main.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"></RelativeLayout>
+          EOF
 
-      - name: Step 3 - Final Push
+      - name: Step 3 - Final Push to Repo
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git commit -m "Full Android project structure initialized without Gradle conflicts" || exit 0
+          git commit -m "Master initialize Android project files & wrapper" || exit 0
           git push
