@@ -1,53 +1,58 @@
-name: Master Android Init
+name: 🤖 Android Project Init
 
 on:
   workflow_dispatch:
 
 jobs:
-  init:
+  initialize:
+    name: Generate Android Project Structure
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout Code
+      - name: 📦 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: ☕ Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Step 1 - Hack the Wrapper (Bypass Error)
+      - name: 🔧 Step 1 - Hack Gradle Wrapper (Bypass 9.x Error)
         run: |
-          # Create a dummy settings file to fool Gradle 9.x into running
           echo "rootProject.name='temp'" > settings.gradle
-          # Now safely generate the Gradle Wrapper binaries for Android version
           gradle wrapper --gradle-version 8.1.1
-          
-      - name: Step 2 - Build Actual Android Structure
+
+      - name: 🏗️ Step 2 - Generate Project Structure
         run: |
+          # Configurable Variables
           PKG="com.johirx.webinapp"
+          APP_NAME="WebInApp"
           DIR="app/src/main/java/com/johirx/webinapp"
           
-          # Create all folders
-          mkdir -p $DIR
+          # Create directory structure
+          mkdir -p "$DIR"
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/assets
 
-          # 1. Override dummy with REAL settings.gradle
-          echo "include ':app'" > settings.gradle
-          echo "rootProject.name='WebInApp'" >> settings.gradle
-          
-          # 2. Gradle Properties
-          echo "android.useAndroidX=true" > gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+          # 1. settings.gradle
+          cat > settings.gradle <<EOF
+          include ':app'
+          rootProject.name='$APP_NAME'
+          EOF
 
-          # 3. Project build.gradle
-          cat <<EOF > build.gradle
+          # 2. gradle.properties
+          cat > gradle.properties <<EOF
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+
+          # 3. Root build.gradle
+          cat > build.gradle <<EOF
           buildscript {
               repositories { google(); mavenCentral() }
               dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
@@ -58,7 +63,7 @@ jobs:
           EOF
 
           # 4. App build.gradle
-          cat <<EOF > app/build.gradle
+          cat > app/build.gradle <<EOF
           plugins { id 'com.android.application' }
           android {
               namespace '$PKG'
@@ -77,13 +82,18 @@ jobs:
           }
           EOF
 
-          # 5. Manifest
-          cat <<EOF > app/src/main/AndroidManifest.xml
+          # 5. AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$PKG">
               <uses-permission android:name="android.permission.INTERNET" />
-              <application android:allowBackup="true" android:label="WebInApp" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
+              <application
+                  android:allowBackup="true"
+                  android:label="$APP_NAME"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -94,10 +104,11 @@ jobs:
           EOF
 
           # 6. MainActivity.java
-          cat <<EOF > $DIR/MainActivity.java
+          cat > "$DIR/MainActivity.java" <<EOF
           package $PKG;
           import android.os.Bundle;
           import androidx.appcompat.app.AppCompatActivity;
+
           public class MainActivity extends AppCompatActivity {
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -108,15 +119,18 @@ jobs:
           EOF
 
           # 7. Layout XML
-          cat <<EOF > app/src/main/res/layout/activity_main.xml
+          cat > app/src/main/res/layout/activity_main.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
-          <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"></RelativeLayout>
+          <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+          </RelativeLayout>
           EOF
 
-      - name: Step 3 - Final Push to Repo
+      - name: 🔄 Step 3 - Commit & Push Generated Files
         run: |
           git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.name "GitHub Action Bot"
           git add .
-          git commit -m "Master initialize Android project files & wrapper" || exit 0
+          git diff --cached --quiet || git commit -m "🤖 Auto-generated Android project structure via GitHub Actions"
           git push
