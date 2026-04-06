@@ -1,7 +1,7 @@
 name: Initialize Full Android Project
 
 on:
-  workflow_dispatch: # Manually run korar jonno
+  workflow_dispatch:
 
 jobs:
   initialize:
@@ -21,11 +21,9 @@ jobs:
 
       - name: Create Android Structure & Configs
         run: |
-          # Package name define kora (Apni chaile ekhane change korte paren)
           PKG="com.johirx.webinapp"
           PKG_PATH="app/src/main/java/com/johirx/webinapp"
           
-          # Create Folders
           mkdir -p $PKG_PATH
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
@@ -49,9 +47,16 @@ jobs:
           </manifest>
           EOF
 
-          # 2. build.gradle (Project level)
-          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.1' } }" > build.gradle
-          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
+          # 2. build.gradle (Project level) - Using 8.1.1 as stable
+          cat <<EOF > build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          EOF
 
           # 3. build.gradle (App level)
           cat <<EOF > app/build.gradle
@@ -79,7 +84,7 @@ jobs:
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
 
-          # 5. MainActivity.java (Basic Template)
+          # 5. MainActivity.java
           cat <<EOF > $PKG_PATH/MainActivity.java
           package $PKG;
           import android.os.Bundle;
@@ -96,15 +101,25 @@ jobs:
           # 6. Layout XML
           echo '<?xml version="1.0" encoding="utf-8"?><RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"></RelativeLayout>' > app/src/main/res/layout/activity_main.xml
 
-      - name: Generate Gradle Wrapper Binaries
+          # 7. Manually Create Gradle Wrapper properties (To avoid failure)
+          cat <<EOF > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+      - name: Generate Gradlew Executables
         run: |
-          gradle wrapper --gradle-version 8.0
+          # Direct gradle wrapper command run korbo but ignore dependencies
+          gradle wrapper --gradle-version 8.0 --validate-url
           chmod +x gradlew
 
-      - name: Commit and Push Full Structure
+      - name: Commit and Push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git commit -m "Initialize Full Android Studio Project Structure" || exit 0
+          git commit -m "Fixed Android structure initialization" || exit 0
           git push
