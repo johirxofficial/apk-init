@@ -72,7 +72,7 @@ apk-init/
 
 ### Option 2: Clone & Run
 ```bash
-git clone https://github.com/YOUR_USERNAME/apk-init.git
+git clone https://github.com/johirxofficial/apk-init.git
 cd apk-init
 # Enable Actions in GitHub UI, then trigger workflows manually
 ```
