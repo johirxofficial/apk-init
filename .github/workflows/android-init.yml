@@ -1,0 +1,110 @@
+name: Initialize Full Android Project
+
+on:
+  workflow_dispatch: # Manually run korar jonno
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Android Structure & Configs
+        run: |
+          # Package name define kora (Apni chaile ekhane change korte paren)
+          PKG="com.johirx.webinapp"
+          PKG_PATH="app/src/main/java/com/johirx/webinapp"
+          
+          # Create Folders
+          mkdir -p $PKG_PATH
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/assets
+          mkdir -p gradle/wrapper
+
+          # 1. AndroidManifest.xml
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$PKG">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application android:allowBackup="true" android:label="WebInApp" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 2. build.gradle (Project level)
+          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.1' } }" > build.gradle
+          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
+
+          # 3. build.gradle (App level)
+          cat <<EOF > app/build.gradle
+          plugins { id 'com.android.application' }
+          android {
+              namespace '$PKG'
+              compileSdk 33
+              defaultConfig {
+                  applicationId "$PKG"
+                  minSdk 24
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
+          }
+          EOF
+
+          # 4. Settings & Properties
+          echo "include ':app'" > settings.gradle
+          echo "rootProject.name='WebInApp'" >> settings.gradle
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+
+          # 5. MainActivity.java (Basic Template)
+          cat <<EOF > $PKG_PATH/MainActivity.java
+          package $PKG;
+          import android.os.Bundle;
+          import androidx.appcompat.app.AppCompatActivity;
+          public class MainActivity extends AppCompatActivity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+              }
+          }
+          EOF
+
+          # 6. Layout XML
+          echo '<?xml version="1.0" encoding="utf-8"?><RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent"></RelativeLayout>' > app/src/main/res/layout/activity_main.xml
+
+      - name: Generate Gradle Wrapper Binaries
+        run: |
+          gradle wrapper --gradle-version 8.0
+          chmod +x gradlew
+
+      - name: Commit and Push Full Structure
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Initialize Full Android Studio Project Structure" || exit 0
+          git push
